@@ -1,5 +1,5 @@
 # 🧠 Code-Generating Agent with Contextual RAG and LlamaIndex
-This project implements an intelligent, code-generating agent powered by contextual Retrieval-Augmented Generation (RAG) and the LlamaIndex framework. Designed to read and deeply understand both natural language documentation (PDF, DOCX) and source code files (Python, TypeScript, etc.), the agent leverages contextual retrieval to produce accurate and context-aware code outputs. Generated code is automatically written to the appropriate files created and managed by the agent within user's requests.
+This project implements an intelligent, code-generating agent powered by contextual Retrieval-Augmented Generation (RAG) and the LlamaIndex framework. Designed to read and deeply understand both natural language documentation (PDF, DOCX) and source code files (Python, TypeScript, etc.) as well as searching on the internet for necessary information, the agent leverages contextual retrieval to produce accurate and context-aware code outputs. Generated code is automatically written to the appropriate files created and managed by the agent within user's requests.
 
 ✨ Key Features
 * Contextual RAG with LlamaIndex
