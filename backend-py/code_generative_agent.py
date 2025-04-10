@@ -22,6 +22,57 @@ import time
 
 updated_code_output_filename = ""
 
+def search_internet_func(query: str, num_results: int = 2) -> dict:
+    """
+    This function searches the internet for a given query and returns the results.
+    
+    Args:
+        query: The search query string
+        num_results: Number of results to return (default: 5)
+        
+    Returns:
+        A dictionary containing search results or error information
+    """
+    try:
+        if not query or not isinstance(query, str):
+            return {"error": "Query must be a non-empty string"}
+        
+        api_key = os.environ.get("SERP_API_KEY")
+        if not api_key:
+            return {"error": "Search API key not configured"}
+        
+        from serpapi import GoogleSearch
+        
+        params = {
+            "engine": "google",
+            "q": query,
+            "api_key": api_key,
+            "num": num_results
+        }
+        
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        if "error" in results:
+            return {"error": results["error"]}
+        
+        formatted_results = []
+        if "organic_results" in results:
+            for result in results["organic_results"][:num_results]:
+                formatted_results.append({
+                    "title": result.get("title", ""),
+                    "snippet": result.get("snippet", ""),
+                })
+        
+        return {
+            "search_results": formatted_results,
+            "query": query,
+            "total_results_found": len(formatted_results)
+        }
+    
+    except Exception as e:
+        return {"error": f"Search failed: {str(e)}"}
+
 def code_reader_func(code_dir_list: List[str]):
     "This function receives inputs as a list of code directories of files to read their contents and returns the content of the files"
     content = ""
@@ -80,19 +131,25 @@ class CodeGenerativeAgent:
 
             self.code_reader = FunctionTool.from_defaults(
                 fn=code_reader_func,
-                name="code_reader",
+                name="code_reader_func",
                 description="""this tool can read the contents of code files to get more information and return 
                 their results. Use this when you need to read the contents of a code file""",
             )
 
             self.code_writer = FunctionTool.from_defaults(
                 fn=code_save_func,
-                name="code_writer",
+                name="code_save_func",
                 description="This tool can help save a code program to a file by receiving code content and write or save the code to a file given file name. Use this when the user ask to generate a code program"
             )
 
+            self.search_internet = FunctionTool.from_defaults(
+                fn=search_internet_func,
+                name="search_internet_func",
+                description="This tool can help search the internet for a given query and return the results. Use this when you need to search the internet for more information",
+            )
+
             self.agent_context = """You are a helpful code generative assistant. Your primary role is to assist users by analyzing and generating code based on the provided docs and user's queries:
-        - First, you should use the given documents (code files and text files) and given tools (use code_reader to read codes by giving the file names, documentation_for_code query engine to get documentation of the code by giving queries about the parts you want to know), and if the docs are irrelevant or not helpful, do not use them and answer the question yourself.
+        - First, you should use the given documents (code files and text files) and given tools (use code_reader to read codes by giving the file names, documentation_for_code query engine to get documentation of the code by giving queries about the parts you want to know), and if the docs are irrelevant or not helpful, you could use search_internet_func to search for more information and answer the question yourself.
         - Remember to use the code_writer tool to save the code to a file if users ask for generating a code program
         - Your output response should be the description on how to use the code (installation and running instructions)"""
 
@@ -162,7 +219,8 @@ class CodeGenerativeAgent:
                     )
                 ),
                 self.code_reader,
-                self.code_writer
+                self.code_writer,
+                self.search_internet,
             ]
 
             self.agent[user_id] = ReActAgent.from_tools(tools=tools, llm=self.llm, verbose=True, context=self.agent_context)
@@ -211,7 +269,7 @@ class CodeGenerativeAgent:
         try: 
             self.last_activity[user_id] = time.time()
 
-            final_prompt = (f"Based on these documents: {' '.join(self.given_docs_file_name[user_id])}. " if self.given_docs_file_name[user_id] else "") + f"Here is the user's prompt: {input_prompt}. Decide on your own to use code_reader tool for code files and documentation_for_code tools by giving one query containing many parts about documentation of the code to get more information. If the documents are irrelevant or not helpful, answer the question yourself. Remember if the user ask you to generate code, you have to save it to a file using code_writer tool, and answer the user with usage instructions"
+            final_prompt = (f"Based on these documents: {' '.join(self.given_docs_file_name[user_id])}. " if self.given_docs_file_name[user_id] else "") + f"Here is the user's prompt: {input_prompt}. Decide on your own to use code_reader_func tool for code files, documentation_for_code or search_internet tools by giving one query containing many parts about documentation of the code to get more information. If the documents are irrelevant or not helpful, answer the question yourself. Remember if the user ask you to generate code, you have to save it to a file using code_writer_func tool, and answer the user with usage instructions"
 
             response = self.agent[user_id].chat(final_prompt)
 
